@@ -45,4 +45,5 @@ Thumbs.db
 .turbo/
 
 # Superpowers / worktrees
+.superpowers/
 .worktrees/
