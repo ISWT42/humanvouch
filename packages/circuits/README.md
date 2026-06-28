@@ -22,3 +22,9 @@ Artifacts: `build/attestation_js/attestation.wasm`, `build/attestation_final.zke
 ## Consumed by
 - Plan 02 (Soroban): `verification_key.json` → on-chain Groth16 verifier.
 - Plan 03 (API): `generateAttestationProof` → attestation payload; `hashToField` → canonical content hash.
+
+## Security & integration invariants (READ before Plan 02/03)
+
+- **On-chain root validation is mandatory.** The circuit's `root` is a public OUTPUT computed from the supplied Merkle path — it is NOT constrained to a known registry root. Therefore `verifyAttestationProof` returning `true` proves only that *some* tree produced that root + a correct nullifier. A non-member can produce a Groth16-valid proof carrying a root from their own fake tree. **The on-chain verifier MUST reject any proof whose `root` is not a currently-valid registry root.** Groth16 validity alone is necessary but NOT sufficient for membership.
+- **Public signal order (for the contract):** `publicSignals[0] = root` (check against registry), `publicSignals[1] = nullifierHash` (replay-protect per content), `publicSignals[2] = contentHash` (record).
+- **Trusted setup is NON-PRODUCTION.** `scripts/build.sh` uses hard-coded entropy and is deterministic (rebuilding reproduces `verification_key.json` byte-for-byte), so the toxic waste is public and proofs are forgeable. This is fine for the hackathon demo (mocked registry) but production requires a real multi-party ceremony (Perpetual Powers of Tau phase-1 + multi-party phase-2). Also note: the committed `verification_key.json` was produced with `circom 2.2.2` and `snarkjs 0.7.5`; the on-chain vkey, the `zkey`, and the `wasm` MUST all come from the same build (a different toolchain yields a different vkey → on-chain mismatch).

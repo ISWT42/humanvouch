@@ -27,5 +27,9 @@ describe.runIf(built)("groth16 proof round-trip", () => {
     const tampered = [...publicSignals];
     tampered[0] = (BigInt(tampered[0]) + 1n).toString(); // flip root
     expect(await verifyAttestationProof(proof, tampered)).toBe(false);
+
+    const tamperedContent = [...publicSignals];
+    tamperedContent[2] = (BigInt(tamperedContent[2]) + 1n).toString(); // flip contentHash
+    expect(await verifyAttestationProof(proof, tamperedContent)).toBe(false);
   });
 });

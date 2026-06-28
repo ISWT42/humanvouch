@@ -12,7 +12,7 @@ export async function nullifierHash(identitySecret, contentHash) {
 }
 
 export function hashToField(bytes) {
-  const digest = createHash("sha256").update(Buffer.from(bytes)).digest(); // 32 bytes
+  const digest = createHash("sha256").update(bytes).digest(); // 32 bytes
   const asBig = BigInt("0x" + digest.toString("hex"));
   return asBig % FIELD_PRIME;
 }

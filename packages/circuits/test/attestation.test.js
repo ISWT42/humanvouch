@@ -58,4 +58,23 @@ describe("attestation circuit", () => {
     const outRoot = w[1];
     expect(outRoot).not.toBe(tree.root);
   });
+
+  it("rejects a non-boolean pathIndices value (enforces boolean constraint)", async () => {
+    const secret = 12345n;
+    const contentHash = 67890n;
+    const c = await commitment(secret);
+    const tree = await buildTree([c, 2n, 3n, 4n], 20);
+    const { pathElements, pathIndices } = tree.proof(0);
+
+    // Corrupt one pathIndices entry to 2 (not 0 or 1)
+    const badIndices = [...pathIndices];
+    badIndices[0] = 2;
+
+    await expect(
+      circuit.calculateWitness(
+        { identitySecret: secret, pathElements, pathIndices: badIndices, contentHash },
+        true
+      )
+    ).rejects.toThrow();
+  });
 });

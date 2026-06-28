@@ -9,7 +9,7 @@ export async function buildTree(leaves, depth = 20) {
   for (let i = 1; i <= depth; i++) zeros[i] = p.hash([zeros[i - 1], zeros[i - 1]]);
 
   // Level 0 = padded leaves.
-  let level = leaves.slice();
+  const level = leaves.slice();
   const layers = [level];
   for (let d = 0; d < depth; d++) {
     const cur = layers[d];
@@ -26,6 +26,15 @@ export async function buildTree(leaves, depth = 20) {
   const root = layers[depth][0];
 
   function proof(leafIndex) {
+    if (
+      !Number.isInteger(leafIndex) ||
+      leafIndex < 0 ||
+      leafIndex >= leaves.length
+    ) {
+      throw new Error(
+        `proof: leafIndex must be an integer in [0, ${leaves.length}); got ${leafIndex}`
+      );
+    }
     const pathElements = [];
     const pathIndices = [];
     let idx = leafIndex;

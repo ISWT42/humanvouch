@@ -33,4 +33,11 @@ describe("merkleTree", () => {
     }
     expect(node).not.toBe(tree.root);
   });
+
+  it("proof() throws for out-of-range leafIndex", async () => {
+    const tree = await buildTree([11n, 22n, 33n, 44n], 20);
+    expect(() => tree.proof(-1)).toThrow();
+    expect(() => tree.proof(4)).toThrow();
+    expect(() => tree.proof(100)).toThrow();
+  });
 });
