@@ -1,0 +1,2 @@
+build/*
+!build/verification_key.json
