@@ -104,7 +104,11 @@ snarkjs (proof gen) and exported to the Soroban verifier (verifying key).
   3. `nullifierHash` not already used for this `contentHash` — else reject (anti-replay).
   4. Record: `contentHash → unique_human_count++`, store `(contentHash, nullifierHash)` used-set, timestamp.
 - `get_vouches(contentHash) -> (count, timestamps)` — view.
-- NFT/soulbound token = OUT of MUST (storage record is sufficient).
+- Storage record (MUST) is sufficient on its own. An optional **content-bound attestation NFT** (SHOULD /
+  stretch) can be minted referencing `contentHash` — a "certificate of authenticity" for the *content*,
+  not soulbound to a person (the human is anonymous). On-chain cost is negligible (testnet free; mainnet
+  fractions of a cent per mint + small state rent), so the only constraint is dev time. Build it only
+  after the vertical slice + consumption work.
 
 ### 4.4 App (Nuxt frontend + Express API)
 **Author flow**
@@ -197,10 +201,11 @@ lancedb, stripe, AI SDK, S3, MariaDB → SQLite).
 
 **SHOULD**
 - X adapter (if fetch path cooperates).
+- Content-bound attestation NFT (stretch; cheap on-chain, build only after MUST is done).
 
 **CUT**
-- Real personhood provider, roles/disclosure, de-anonymization, NFT/soulbound token, QR badge,
-  C2PA embedding, browser extension, watermarking, perceptual/fuzzy matching, other platforms, MariaDB.
+- Real personhood provider, roles/disclosure, de-anonymization, QR badge, C2PA embedding,
+  browser extension, watermarking, perceptual/fuzzy matching, other platforms, MariaDB.
 
 ## 9. Testing
 
