@@ -98,10 +98,23 @@ snarkjs (proof gen) and exported to the Soroban verifier (verifying key).
 - `is_valid_root(root) -> bool`.
 
 **`AttestContract`** (embeds the Groth16 verifier from `soroban-examples/groth16_verifier`)
-- `attest(proof, [merkleRoot, contentHash, nullifierHash])`:
-  1. `RegistryContract.is_valid_root(merkleRoot)` — else reject.
+
+> **CRITICAL invariant (from Plan 01 final review — do NOT drop in Plan 02).** The circuit's `root`
+> is a public **output** computed from the prover's supplied Merkle path; it is NOT constrained inside
+> the circuit to any known registry root. A Groth16-valid proof therefore only proves "*some* tree
+> produced this root + a correct nullifier" — a non-member can forge a valid proof carrying a root from
+> their own fake tree. **Groth16 validity is necessary but NOT sufficient for membership.** Step 1 below
+> (`is_valid_root`) is the load-bearing membership check; omitting it is a complete authentication bypass.
+>
+> **Exact `publicSignals` order produced by the circuit (snarkjs: outputs first, then public inputs):**
+> `publicSignals[0] = root`, `publicSignals[1] = nullifierHash`, `publicSignals[2] = contentHash`.
+> The contract MUST use these indices (not the loose `[merkleRoot, contentHash, nullifierHash]` ordering
+> written elsewhere in this doc for readability).
+
+- `attest(proof, publicSignals)` where `publicSignals = [root, nullifierHash, contentHash]`:
+  1. `RegistryContract.is_valid_root(publicSignals[0])` — else reject. **(mandatory membership check)**
   2. Verify Groth16 proof against the circuit's verifying key — else reject.
-  3. `nullifierHash` not already used for this `contentHash` — else reject (anti-replay).
+  3. `nullifierHash` (`publicSignals[1]`) not already used for this `contentHash` (`publicSignals[2]`) — else reject (anti-replay).
   4. Record: `contentHash → unique_human_count++`, store `(contentHash, nullifierHash)` used-set, timestamp.
 - `get_vouches(contentHash) -> (count, timestamps)` — view.
 - Storage record (MUST) is sufficient on its own. An optional **content-bound attestation NFT** (SHOULD /
@@ -186,6 +199,15 @@ lancedb, stripe, AI SDK, S3, MariaDB → SQLite).
 | Sybil-resistant: 1 human = 1 vouch per content | Anything stronger than the registry (mocked in demo) |
 | Privacy: chain/reader **and the HumanVouch server** never learn which human (proof generated client-side; secret never leaves the author's device) | Content provenance beyond the vouch |
 | Replay-proof: nullifier prevents double-attestation; content binding prevents proof reuse on other content | Correct match if author edits on-platform after attesting (by design) |
+| On-chain membership enforced via `is_valid_root` (Groth16 validity alone is insufficient — see §4.3 invariant) | Soundness of proofs themselves — see trusted-setup note below |
+
+**Trusted setup (NON-PRODUCTION).** The Groth16 setup in `scripts/build.sh` uses hard-coded entropy and
+is deterministic (rebuilding reproduces `verification_key.json` byte-for-byte). The toxic waste is
+therefore public and **proofs are forgeable** — acceptable for this hackathon demo (registry is mocked
+anyway), but production requires a real multi-party ceremony (Perpetual Powers of Tau phase-1 +
+multi-party phase-2). The committed vkey was produced with `circom 2.2.2` + `snarkjs 0.7.5`; the on-chain
+vkey, the `.zkey`, and the `.wasm` MUST all come from the same build (toolchain drift → vkey mismatch).
+State this disclaimer in the demo video and README.
 
 ## 8. Scope
 
