@@ -1,12 +1,15 @@
 // HumanVouch web — SPA (ssr off) so browser proving (snarkjs) + wallet run client-side.
-// Deploys as a static bundle (nuxt generate) to Vercel/Cloudflare; talks directly to
-// Stellar testnet RPC — no backend needed.
+// Deploys to Vercel; the x402 server route talks directly to Stellar testnet RPC.
 export default defineNuxtConfig({
   compatibilityDate: "2026-06-28",
   // Heavy client-only libs (snarkjs / stellar-sdk / wallet kit) are dynamically
   // imported in onMounted + click handlers, so SSR renders only the static shell.
   modules: ["@nuxtjs/tailwindcss"],
   tailwindcss: { cssPath: "~/assets/css/main.css" },
+  nitro: {
+    // newer target so BigInt literals in the server bundle don't crash
+    esbuild: { options: { target: "es2022" } },
+  },
   devServer: { port: 58273, host: "127.0.0.1" },
   runtimeConfig: {
     public: {
@@ -14,12 +17,6 @@ export default defineNuxtConfig({
       rpcUrl: "https://soroban-testnet.stellar.org",
       networkPassphrase: "Test SDF Network ; September 2015",
       readSourcePublicKey: "GDTLFJ4P2YYJRVO4ED4YQSC5MXKVXYNZPVZXIF3IB5WRMWRFKCJW7BPE",
-      // DEMO ONLY — a throwaway, friendbot-funded testnet keypair so the demo can
-      // show a visible wallet login + a real signed attest tx without a browser
-      // extension. In production this is the user's own wallet (Stellar Wallets Kit);
-      // the secret never lives in the client.
-      demoSignerPublicKey: "GCXWEO2BGB5YIK2UHWPHSABY2DBCHVFO7N7Q2CPAE7N2LUNAOKXVL53A",
-      demoSignerSecret: "SA6YOULJEP3F65AB7CD6OEDWDXGQL7KE45JDALHO4DOPSAP7RZ4PMZN5",
     },
   },
   app: {

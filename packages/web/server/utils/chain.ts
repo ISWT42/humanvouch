@@ -1,8 +1,11 @@
 // Server-side chain helpers for the x402 agent endpoint.
-import * as StellarSdk from "@stellar/stellar-sdk";
+// stellar-sdk is imported lazily (only when actually reading the chain) so the
+// x402 payment-challenge path works even where the SDK is heavy to bundle.
 import { createHash } from "node:crypto";
 
-const FR = 52435875175126190479447740508185965837690552500527637822603658699938581184513n;
+const FR = BigInt(
+  "52435875175126190479447740508185965837690552500527637822603658699938581184513",
+);
 
 export function contentToField(text: string): bigint {
   const hex = createHash("sha256").update(text, "utf8").digest("hex");
@@ -23,7 +26,8 @@ export interface ChainCfg {
 
 // Read-only on-chain query: how many unique humans vouch for this content field element.
 export async function getVouchesOnChain(cfg: ChainCfg, contentField: bigint): Promise<number> {
-  const ns: any = (StellarSdk as any).SorobanRpc || (StellarSdk as any).rpc;
+  const StellarSdk: any = await import("@stellar/stellar-sdk");
+  const ns: any = StellarSdk.rpc || StellarSdk.SorobanRpc;
   const server = new ns.Server(cfg.rpcUrl, { allowHttp: cfg.rpcUrl.startsWith("http://") });
   const account = await server.getAccount(cfg.readSourcePublicKey);
   const contract = new StellarSdk.Contract(cfg.attestContractId);
