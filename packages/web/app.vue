@@ -5,9 +5,10 @@ const registry = ref<any>(null);
 const wallet = ref<string>("");
 const walletErr = ref<string>("");
 const walletBusy = ref(false);
+const walletStatus = ref("");
 
 // vouch flow
-const memberId = ref(3);
+const memberId = ref(1);
 const content = ref(
   "Investigation: the budget figures the ministry released do not add up. — by a real human.",
 );
@@ -64,13 +65,15 @@ function short(a: string) {
 async function connect() {
   walletErr.value = "";
   walletBusy.value = true;
+  walletStatus.value = "";
   try {
     const { connectWallet } = await import("~/lib/stellar.js");
-    wallet.value = await connectWallet(cfg);
+    wallet.value = await connectWallet(cfg, (s: string) => (walletStatus.value = s));
   } catch (e: any) {
     walletErr.value = e.message || "connection failed";
   } finally {
     walletBusy.value = false;
+    walletStatus.value = "";
   }
 }
 
@@ -140,7 +143,7 @@ async function doVerify() {
           @click="connect"
         >
           <span v-if="wallet" class="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          {{ walletBusy ? "Connecting…" : wallet ? short(wallet) + " · testnet" : "Connect wallet" }}
+          {{ walletBusy ? (walletStatus || "Connecting…") : wallet ? short(wallet) + " · testnet" : "Create testnet wallet" }}
         </button>
       </header>
 

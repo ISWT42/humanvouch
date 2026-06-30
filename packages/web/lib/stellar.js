@@ -1,26 +1,48 @@
-// Stellar/Soroban: wallet connect + submit the attest tx + read vouch count.
+// Stellar/Soroban: a built-in browser wallet + submit the attest tx + read vouches.
 //
-// DEMO MODE: connect/sign use a throwaway, friendbot-funded testnet keypair so the
-// login state and the real signed transaction are visible and recordable without a
-// browser extension. In production this swaps to the user's own wallet (Stellar
-// Wallets Kit) and the secret never touches the client.
+// The wallet is created and held in the browser: a fresh Stellar keypair generated
+// on first connect, funded via Friendbot, and persisted in localStorage. No browser
+// extension needed — the app spins up a real (testnet) wallet for each visitor and
+// signs the attestation with it. (Production can also offer Freighter via the
+// Stellar Wallets Kit; the built-in wallet is the zero-friction default.)
 import * as StellarSdk from "@stellar/stellar-sdk";
 import { hexToBytes } from "./snarkHex.js";
+
+const LS_KEY = "hv_wallet_secret";
 
 function rpc(cfg) {
   const ns = StellarSdk.SorobanRpc || StellarSdk.rpc;
   return new ns.Server(cfg.rpcUrl, { allowHttp: cfg.rpcUrl.startsWith("http://") });
 }
 
-export async function connectWallet(cfg) {
-  // brief "connecting…" beat so the login reads as a real handshake
-  await new Promise((r) => setTimeout(r, 650));
-  return cfg.demoSignerPublicKey;
+function loadKeypair() {
+  const s = typeof localStorage !== "undefined" ? localStorage.getItem(LS_KEY) : null;
+  return s ? StellarSdk.Keypair.fromSecret(s) : null;
+}
+
+// Create (or restore) the in-browser wallet and return its public key.
+// onStatus is called with human-readable progress so the UI can show the handshake.
+export async function connectWallet(_cfg, onStatus) {
+  const existing = loadKeypair();
+  if (existing) {
+    onStatus?.("Restoring your wallet…");
+    await new Promise((r) => setTimeout(r, 400));
+    return existing.publicKey();
+  }
+  onStatus?.("Generating your keys…");
+  const kp = StellarSdk.Keypair.random();
+  await new Promise((r) => setTimeout(r, 400));
+  onStatus?.("Funding your wallet on testnet…");
+  const res = await fetch(`/api/fund?addr=${kp.publicKey()}`);
+  if (!res.ok) throw new Error("could not fund the wallet on testnet");
+  localStorage.setItem(LS_KEY, kp.secret());
+  return kp.publicKey();
 }
 
 export async function submitAttest(cfg, _address, proofHex, publicHex) {
+  const kp = loadKeypair();
+  if (!kp) throw new Error("connect a wallet first");
   const server = rpc(cfg);
-  const kp = StellarSdk.Keypair.fromSecret(cfg.demoSignerSecret);
   const account = await server.getAccount(kp.publicKey());
   const contract = new StellarSdk.Contract(cfg.attestContractId);
   const op = contract.call(
@@ -52,7 +74,6 @@ export async function submitAttest(cfg, _address, proofHex, publicHex) {
   return { count: StellarSdk.scValToNative(got.returnValue), hash: sent.hash };
 }
 
-// Read-only: how many unique humans vouch for this content hash.
 export async function getVouches(cfg, _sourceAddress, contentHash32) {
   const server = rpc(cfg);
   const account = await server.getAccount(cfg.readSourcePublicKey);
