@@ -21,14 +21,40 @@ const verBusy = ref(false);
 const verCount = ref<number | null>(null);
 const verErr = ref("");
 
+// agent / x402 demo state
+const agentBusy = ref(false);
+const agent402 = ref<any>(null);
+const agent200 = ref<any>(null);
+const agentErr = ref("");
+
 onMounted(async () => {
   try {
     const { loadRegistry } = await import("~/lib/zk.js");
     registry.value = await loadRegistry();
+    if (registry.value?.demoContent) content.value = registry.value.demoContent;
   } catch (e: any) {
     vErr.value = "registry load failed: " + e.message;
   }
 });
+
+async function runAgentQuery() {
+  agentErr.value = "";
+  agent402.value = null;
+  agent200.value = null;
+  agentBusy.value = true;
+  try {
+    const url = "/api/v1/attestation?content=" + encodeURIComponent(content.value);
+    const r1 = await fetch(url);
+    agent402.value = { status: r1.status, body: await r1.json() };
+    await new Promise((r) => setTimeout(r, 700));
+    const r2 = await fetch(url, { headers: { "X-Payment": "stellar-testnet:demo-receipt" } });
+    agent200.value = { status: r2.status, body: await r2.json() };
+  } catch (e: any) {
+    agentErr.value = e.message || String(e);
+  } finally {
+    agentBusy.value = false;
+  }
+}
 
 function short(a: string) {
   return a ? a.slice(0, 5) + "…" + a.slice(-4) : "";
@@ -145,9 +171,9 @@ async function doVerify() {
             <option v-for="m in registry?.members || []" :key="m.id" :value="m.id">{{ m.label }}</option>
           </select>
 
-          <label class="mt-4 block font-mono text-xs text-paper-faint">CONTENT</label>
-          <textarea v-model="content" rows="3"
-            class="mt-1.5 w-full resize-none rounded-sm border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-paper" />
+          <label class="mt-4 block font-mono text-xs text-paper-faint">CONTENT (a full article)</label>
+          <textarea v-model="content" rows="6"
+            class="mt-1.5 w-full resize-none rounded-sm border border-ink-600 bg-ink-800 px-3 py-2 text-sm leading-relaxed text-paper" />
 
           <button :disabled="vBusy"
             class="mt-4 w-full rounded-sm border border-brass bg-brass/10 px-5 py-3 text-sm font-medium tracking-wide text-brass-light transition hover:bg-brass/20 disabled:opacity-50"
@@ -183,6 +209,41 @@ async function doVerify() {
           <div v-if="verCount !== null" class="mt-4 rounded-sm border border-ink-600 p-4">
             <p class="font-display text-3xl text-paper">{{ verCount }}</p>
             <p class="mt-1 text-sm text-paper-dim">unique verified human(s) vouch for this exact content · anonymous · on Stellar</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- for agents: x402 -->
+      <section class="border-t border-ink-600 px-6 py-8 sm:px-10">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="eyebrow text-brass">For agents · x402</p>
+            <p class="mt-3 max-w-2xl text-sm leading-relaxed text-paper-dim">
+              The real shift: an AI agent can ask, programmatically, <em>"does a real human stand behind
+              this content?"</em> — pay a micropayment over <span class="text-paper">x402</span> (HTTP 402),
+              and get a verifiable, on-chain answer. HumanVouch as infrastructure for the agent era.
+            </p>
+          </div>
+          <button :disabled="agentBusy"
+            class="rounded-sm border border-brass bg-brass/10 px-4 py-2.5 text-sm font-medium text-brass-light transition hover:bg-brass/20 disabled:opacity-50"
+            @click="runAgentQuery">
+            {{ agentBusy ? "Querying…" : "Run an agent query" }}
+          </button>
+        </div>
+
+        <pre class="mt-5 overflow-x-auto rounded-sm border border-ink-600 bg-ink-800 p-4 font-mono text-xs text-paper-dim"><span class="text-paper-faint"># an agent asks if a human backs this article</span>
+curl <span class="text-prussian-light">/api/v1/attestation?content=…</span></pre>
+
+        <div v-if="agentErr" class="mt-3 font-mono text-xs text-oxblood">⚠ {{ agentErr }}</div>
+
+        <div v-if="agent402" class="mt-4 grid gap-3 lg:grid-cols-2">
+          <div>
+            <p class="font-mono text-xs text-oxblood">← {{ agent402.status }} Payment Required (x402)</p>
+            <pre class="mt-1.5 overflow-x-auto rounded-sm border border-ink-600 bg-ink-800 p-3 font-mono text-[11px] leading-relaxed text-paper-dim">{{ JSON.stringify(agent402.body, null, 2) }}</pre>
+          </div>
+          <div v-if="agent200">
+            <p class="font-mono text-xs text-brass-light">← {{ agent200.status }} OK · paid · resolved on-chain</p>
+            <pre class="mt-1.5 overflow-x-auto rounded-sm border border-brass/30 bg-brass/5 p-3 font-mono text-[11px] leading-relaxed text-paper">{{ JSON.stringify(agent200.body, null, 2) }}</pre>
           </div>
         </div>
       </section>
