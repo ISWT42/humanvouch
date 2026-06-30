@@ -1,11 +1,16 @@
 <script setup lang="ts">
 const cfg = useRuntimeConfig().public;
+const route = useRoute();
 
 const registry = ref<any>(null);
 const wallet = ref<string>("");
 const walletErr = ref<string>("");
 const walletBusy = ref(false);
 const walletStatus = ref("");
+
+// proof-of-personhood (anti-bot) gate
+const humanVerified = ref(false);
+const verifyingHuman = ref(false);
 
 // vouch flow
 const memberId = ref(1);
@@ -14,14 +19,18 @@ const content = ref(
 );
 const vStatus = ref("");
 const vBusy = ref(false);
-const vResult = ref<{ count: number; hash: string } | null>(null);
+const vResult = ref<{ count: number; hash: string; share: string } | null>(null);
 const vErr = ref("");
+const copied = ref(false);
 
 // verify flow
 const vcontent = ref("");
 const verBusy = ref(false);
 const verCount = ref<number | null>(null);
 const verErr = ref("");
+
+// shared verification view (when opened via a /?v=<hash> link)
+const shareView = ref<any>(null);
 
 // agent / x402 demo state
 const agentBusy = ref(false);
@@ -37,25 +46,31 @@ onMounted(async () => {
   } catch (e: any) {
     vErr.value = "registry load failed: " + e.message;
   }
+  if (route.query.v) await openSharedVerification(String(route.query.v));
 });
 
-async function runAgentQuery() {
-  agentErr.value = "";
-  agent402.value = null;
-  agent200.value = null;
-  agentBusy.value = true;
+// A shareable link /?v=<contentHashField> resolves the attestation for anyone.
+async function openSharedVerification(hashField: string) {
+  shareView.value = { loading: true, hashField };
   try {
-    const url = "/api/v1/attestation?content=" + encodeURIComponent(content.value);
-    const r1 = await fetch(url);
-    agent402.value = { status: r1.status, body: await r1.json() };
-    await new Promise((r) => setTimeout(r, 700));
-    const r2 = await fetch(url, { headers: { "X-Payment": "stellar-testnet:demo-receipt" } });
-    agent200.value = { status: r2.status, body: await r2.json() };
+    const zk = await import("~/lib/zk.js");
+    const st = await import("~/lib/stellar.js");
+    const count = await st.getVouches(cfg, null, zk.toBytes32BE(BigInt(hashField)));
+    const stored =
+      typeof localStorage !== "undefined" ? localStorage.getItem("hv_content_" + hashField) : null;
+    shareView.value = { loading: false, hashField, count, content: stored };
   } catch (e: any) {
-    agentErr.value = e.message || String(e);
-  } finally {
-    agentBusy.value = false;
+    shareView.value = { loading: false, hashField, error: e.message };
   }
+}
+
+async function verifyHuman() {
+  verifyingHuman.value = true;
+  // Demo proof-of-personhood. Production: World ID / passport NFC / liveness — a real
+  // anti-bot check so only unique humans ever get an identity in the registry.
+  await new Promise((r) => setTimeout(r, 1600));
+  humanVerified.value = true;
+  verifyingHuman.value = false;
 }
 
 function short(a: string) {
@@ -80,6 +95,7 @@ async function connect() {
 async function doVouch() {
   vErr.value = "";
   vResult.value = null;
+  copied.value = false;
   if (!wallet.value) {
     await connect();
     if (!wallet.value) return;
@@ -96,16 +112,34 @@ async function doVouch() {
     vStatus.value = "Generating zero-knowledge proof in your browser…";
     const { proofHex, publicHex } = await zk.generateVouchProof(member, ch);
 
-    vStatus.value = "Sign the transaction in your wallet…";
+    vStatus.value = "Signing & submitting on Stellar…";
     const res = await st.submitAttest(cfg, wallet.value, proofHex, publicHex);
 
+    if (typeof localStorage !== "undefined")
+      localStorage.setItem("hv_content_" + ch.toString(), content.value);
+
     vStatus.value = "";
-    vResult.value = res;
+    vResult.value = {
+      ...res,
+      share: `${location.origin}/?v=${ch.toString()}`,
+    };
   } catch (e: any) {
-    vErr.value = e.message || String(e);
+    const msg = e.message || String(e);
+    vErr.value = /#7|already/i.test(msg)
+      ? "Already vouched — one human, one vouch per content. That's the sybil-resistance: spam can't inflate the count."
+      : msg;
   } finally {
     vBusy.value = false;
   }
+}
+
+async function copyShare() {
+  if (!vResult.value) return;
+  try {
+    await navigator.clipboard.writeText(vResult.value.share);
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 1800);
+  } catch {}
 }
 
 async function doVerify() {
@@ -116,12 +150,30 @@ async function doVerify() {
     const zk = await import("~/lib/zk.js");
     const st = await import("~/lib/stellar.js");
     const ch = await zk.contentHashField(vcontent.value || content.value);
-    const bytes32 = zk.toBytes32BE(ch);
-    verCount.value = await st.getVouches(cfg, wallet.value || null, bytes32);
+    verCount.value = await st.getVouches(cfg, wallet.value || null, zk.toBytes32BE(ch));
   } catch (e: any) {
     verErr.value = e.message || String(e);
   } finally {
     verBusy.value = false;
+  }
+}
+
+async function runAgentQuery() {
+  agentErr.value = "";
+  agent402.value = null;
+  agent200.value = null;
+  agentBusy.value = true;
+  try {
+    const url = "/api/v1/attestation?content=" + encodeURIComponent(content.value);
+    const r1 = await fetch(url);
+    agent402.value = { status: r1.status, body: await r1.json() };
+    await new Promise((r) => setTimeout(r, 700));
+    const r2 = await fetch(url, { headers: { "X-Payment": "stellar-testnet:demo-receipt" } });
+    agent200.value = { status: r2.status, body: await r2.json() };
+  } catch (e: any) {
+    agentErr.value = e.message || String(e);
+  } finally {
+    agentBusy.value = false;
   }
 }
 </script>
@@ -146,6 +198,25 @@ async function doVerify() {
           {{ walletBusy ? (walletStatus || "Connecting…") : wallet ? short(wallet) + " · testnet" : "Create testnet wallet" }}
         </button>
       </header>
+
+      <!-- shared verification (opened from a /?v=… link pasted on X / Medium) -->
+      <section v-if="shareView" class="border-b border-ink-600 bg-brass/5 px-6 py-7 sm:px-10">
+        <p class="eyebrow text-brass">Content credential · resolved on Stellar</p>
+        <p v-if="shareView.loading" class="mt-3 font-mono text-sm text-prussian-light">Resolving on-chain…</p>
+        <template v-else>
+          <p class="mt-3 text-lg text-paper">
+            <span v-if="shareView.count > 0" class="text-brass-light">✅ Human-Vouched</span>
+            <span v-else class="text-paper-faint">Not yet vouched</span>
+            ·
+            <span class="font-display text-2xl text-paper">{{ shareView.count }}</span>
+            unique verified human(s) stand behind this content — anonymous, on Stellar.
+          </p>
+          <blockquote v-if="shareView.content" class="mt-4 border-l-2 border-brass/40 pl-4 text-sm leading-relaxed text-paper-dim">
+            {{ shareView.content }}
+          </blockquote>
+          <p class="mt-3 font-mono text-[11px] text-paper-faint">contentHash {{ shareView.hashField.slice(0, 18) }}… · AttestContract {{ cfg.attestContractId.slice(0, 8) }}…</p>
+        </template>
+      </section>
 
       <!-- hero -->
       <section class="grid items-center gap-10 px-6 py-12 sm:px-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16 lg:py-16">
@@ -175,19 +246,33 @@ async function doVerify() {
           <p class="eyebrow text-brass">Vouch for content</p>
           <p class="mt-3 text-sm text-paper-dim">A verified human stakes a private, anonymous vouch on this content.</p>
 
-          <label class="mt-5 block font-mono text-xs text-paper-faint">YOUR VERIFIED IDENTITY (demo registry)</label>
+          <!-- proof-of-personhood gate (the honest "human filter": verify the PERSON, not the bytes) -->
+          <div class="mt-5 rounded-sm border border-ink-600 bg-ink-800 p-3">
+            <p class="font-mono text-xs text-paper-faint">PROOF OF PERSONHOOD</p>
+            <div v-if="!humanVerified" class="mt-2 flex items-center justify-between gap-3">
+              <span class="text-xs text-paper-dim">Pass a human check before you get an identity.</span>
+              <button :disabled="verifyingHuman"
+                class="shrink-0 rounded-sm border border-prussian-light/50 px-3 py-1.5 text-xs font-medium text-prussian-light transition hover:bg-prussian/20 disabled:opacity-50"
+                @click="verifyHuman">
+                {{ verifyingHuman ? "Verifying you're human…" : "Verify you're human" }}
+              </button>
+            </div>
+            <p v-else class="mt-2 text-xs text-brass-light">✓ Human verified · identity issued <span class="text-paper-faint">(demo — production: World ID / passport)</span></p>
+          </div>
+
+          <label class="mt-4 block font-mono text-xs text-paper-faint">YOUR VERIFIED IDENTITY (demo registry)</label>
           <select v-model="memberId" class="mt-1.5 w-full rounded-sm border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-paper">
             <option v-for="m in registry?.members || []" :key="m.id" :value="m.id">{{ m.label }}</option>
           </select>
 
           <label class="mt-4 block font-mono text-xs text-paper-faint">CONTENT (a full article)</label>
-          <textarea v-model="content" rows="6"
+          <textarea v-model="content" rows="5"
             class="mt-1.5 w-full resize-none rounded-sm border border-ink-600 bg-ink-800 px-3 py-2 text-sm leading-relaxed text-paper" />
 
-          <button :disabled="vBusy"
-            class="mt-4 w-full rounded-sm border border-brass bg-brass/10 px-5 py-3 text-sm font-medium tracking-wide text-brass-light transition hover:bg-brass/20 disabled:opacity-50"
+          <button :disabled="vBusy || !humanVerified"
+            class="mt-4 w-full rounded-sm border border-brass bg-brass/10 px-5 py-3 text-sm font-medium tracking-wide text-brass-light transition hover:bg-brass/20 disabled:opacity-40"
             @click="doVouch">
-            {{ vBusy ? "Working…" : "Generate proof & vouch on Stellar" }}
+            {{ vBusy ? "Working…" : humanVerified ? "Generate proof & vouch on Stellar" : "Verify you're human first" }}
           </button>
 
           <p v-if="vStatus" class="mt-3 font-mono text-xs text-prussian-light">{{ vStatus }}</p>
@@ -196,6 +281,16 @@ async function doVerify() {
             <p class="text-brass-light">✅ Vouched on-chain · <span class="text-paper">{{ vResult.count }}</span> unique human(s) for this content</p>
             <a :href="`https://stellar.expert/explorer/testnet/tx/${vResult.hash}`" target="_blank"
                class="mt-1 block break-all font-mono text-xs text-prussian-light underline">view the real transaction ↗</a>
+            <!-- shareable verification link to paste anywhere -->
+            <div class="mt-3 border-t border-brass/20 pt-3">
+              <p class="font-mono text-[11px] text-paper-faint">PASTE THIS WHERE YOU PUBLISH (X, Medium, anywhere):</p>
+              <div class="mt-1.5 flex items-center gap-2">
+                <code class="flex-1 truncate rounded-sm border border-ink-600 bg-ink-800 px-2 py-1.5 font-mono text-[11px] text-paper">🧑 Human-Vouched ✓ · {{ vResult.share }}</code>
+                <button class="shrink-0 rounded-sm border border-ink-600 px-2.5 py-1.5 font-mono text-[11px] text-paper-dim transition hover:border-brass hover:text-brass-light" @click="copyShare">
+                  {{ copied ? "copied" : "copy" }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -218,6 +313,16 @@ async function doVerify() {
           <div v-if="verCount !== null" class="mt-4 rounded-sm border border-ink-600 p-4">
             <p class="font-display text-3xl text-paper">{{ verCount }}</p>
             <p class="mt-1 text-sm text-paper-dim">unique verified human(s) vouch for this exact content · anonymous · on Stellar</p>
+          </div>
+
+          <!-- anti-spam / sybil -->
+          <div class="mt-6 rounded-sm border border-ink-700 bg-ink-800/50 p-3">
+            <p class="font-mono text-xs text-paper-faint">ANTI-SPAM · SYBIL-RESISTANCE</p>
+            <p class="mt-1.5 text-xs leading-relaxed text-paper-dim">
+              Each human can vouch a given piece of content <span class="text-paper">once</span> — enforced
+              on-chain by a nullifier. Bots and duplicate accounts can't inflate the count; a second
+              attempt is rejected as <span class="text-oxblood">already-vouched</span>.
+            </p>
           </div>
         </div>
       </section>
