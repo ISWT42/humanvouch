@@ -14,6 +14,11 @@ Last updated: 2026-06-29
   `[root, nullifierHash, contentHash]` matched the off-chain-computed values exactly.
 - **Off-chain hashing:** Poseidon-bls12381 via the compiled hasher **wasm as oracle** (no JS
   reimplementation). Validated against jmagan's vector `poseidon([1,2]) = 0x3fb8…e5fa`.
+- **AttestContract (deployed):** `CDPDQJB7HX5XVOUHEDQKV6T7KJXNGVTVH3VDCXMFEE7GPIIINOVO5YZT` (testnet).
+  Real flow proven on-chain: `set_root` (registry root) → `attest(proof, public)` verifies the
+  membership proof, enforces `is_valid_root` (MANDATORY), records a vouch → returned `1`
+  (tx `f0f823da…`); `get_vouches` → `1`; a replayed attest → `Error #7 AlreadyVouched`
+  (one human, one vouch per content). Source: `packages/contracts/attest/`.
 
 ## Tooling (installed)
 
@@ -33,9 +38,8 @@ Build artifacts (`build/`, `target/`, `*.zkey`, `*.ptau`) are gitignored and reg
 
 ## What remains (pure engineering, no crypto risk)
 
-1. **AttestContract + RegistryContract**: wrap `verify` with `set_root`/`is_valid_root` (membership
-   MUST), nullifier replay guard, and `attest()` recording `contentHash → unique vouch count` +
-   `get_vouches(contentHash)`. Build on `packages/contracts/groth16-verifier`.
+1. ~~**AttestContract + RegistryContract**~~ ✅ DONE — `packages/contracts/attest/`, deployed +
+   proven on testnet (see above).
 2. **Frontend wiring**: author flow (paste content → SHA256→field → browser generates proof via
    snarkjs wasm + the attestation zkey → submit `attest` tx) and verifier flow (`get_vouches`).
    Wallet connect via Stellar Wallets Kit. Replace the static landing CTAs.
