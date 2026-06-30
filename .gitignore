@@ -47,3 +47,9 @@ Thumbs.db
 # Superpowers / worktrees
 .superpowers/
 .worktrees/
+
+# vendored on-chain build artifacts
+packages/contracts/**/target/
+packages/zk/circuits/build/
+attest_input.json
+expected_public.json
