@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    font-family: theme("fontFamily.sans");
+    background-color: theme("colors.ink.DEFAULT");
+    color: theme("colors.paper.DEFAULT");
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* faint intaglio glow — barely there, like security paper under raking light */
+  body {
+    min-height: 100vh;
+    background-image:
+      radial-gradient(1200px 800px at 82% -12%, rgba(43, 74, 126, 0.16), transparent 60%),
+      radial-gradient(900px 700px at -12% 112%, rgba(176, 141, 87, 0.08), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgba(176, 141, 87, 0.28);
+    color: theme("colors.paper.DEFAULT");
+  }
+
+  :focus-visible {
+    outline: 2px solid theme("colors.brass.DEFAULT");
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    font-family: theme("fontFamily.mono");
+    font-size: 0.72rem;
+    letter-spacing: theme("letterSpacing.eyebrow");
+    text-transform: uppercase;
+    color: theme("colors.brass.DEFAULT");
+  }
+
+  /* slow rotation for the guilloché seal; stilled for reduced motion */
+  .seal-spin {
+    animation: seal-rotate 90s linear infinite;
+    transform-origin: 50% 50%;
+  }
+  .seal-reveal {
+    animation: seal-reveal 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes seal-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes seal-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seal-spin,
+  .seal-reveal {
+    animation: none;
+  }
+}
