@@ -1195,7 +1195,7 @@ __metadata:
   dependencies:
     "@creit.tech/stellar-wallets-kit": "npm:^1.7.3"
     "@nuxtjs/tailwindcss": "npm:^6.13.0"
-    "@stellar/stellar-sdk": "npm:^13.1.0"
+    "@stellar/stellar-sdk": "npm:^16.0.1"
     nuxt: "npm:^3.16.0"
     snarkjs: "npm:^0.7.5"
   languageName: unknown
@@ -1685,6 +1685,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/ed25519@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@noble/ed25519@npm:3.1.0"
+  checksum: 10c0/6317722130649cf5884eff57d540b36ec1006cf68145b09ff427d88df359a3b12baaaf420aad87b747f49d30c5ae56065bf31e5ebde1a6d59c3ce9d0b6a68fdb
+  languageName: node
+  linkType: hard
+
 "@noble/hashes@npm:1.7.0":
   version: 1.7.0
   resolution: "@noble/hashes@npm:1.7.0"
@@ -1706,7 +1713,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:2.2.0, @noble/hashes@npm:^2.0.1":
+"@noble/hashes@npm:2.2.0, @noble/hashes@npm:^2.0.1, @noble/hashes@npm:^2.2.0":
   version: 2.2.0
   resolution: "@noble/hashes@npm:2.2.0"
   checksum: 10c0/cad8630c504d6b9271984f685cd0af9101b40988fc2dfbe17ccdf068a9941f95cc5c9957d89e9ca4b7ca94c15cb35f93510c5d53a09fbcc83ee503b93d0a1034
@@ -4071,6 +4078,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@stellar/js-xdr@npm:4.0.0":
+  version: 4.0.0
+  resolution: "@stellar/js-xdr@npm:4.0.0"
+  checksum: 10c0/617bb3d7fa9fbdb607e5cb42cc032a15ad1c111440c6d7ede40fcecde204e88ed351aebc80ce1e4eedac6c1d949c3da5722696611e2b00569e7edbd5a0634c37
+  languageName: node
+  linkType: hard
+
 "@stellar/js-xdr@npm:^3.1.2":
   version: 3.1.2
   resolution: "@stellar/js-xdr@npm:3.1.2"
@@ -4096,7 +4110,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@stellar/stellar-sdk@npm:^13.1.0, @stellar/stellar-sdk@npm:^13.3.0":
+"@stellar/stellar-sdk@npm:^13.3.0":
   version: 13.3.0
   resolution: "@stellar/stellar-sdk@npm:13.3.0"
   dependencies:
@@ -4109,6 +4123,28 @@ __metadata:
     toml: "npm:^3.0.0"
     urijs: "npm:^1.19.1"
   checksum: 10c0/514434967761908d35867cfc93469d9d014d4a78ea7cd53f27205cfe016e4c56282221fda8205b17e9895eed3a4054d7450a23c082e368a02feec32bb21e99a5
+  languageName: node
+  linkType: hard
+
+"@stellar/stellar-sdk@npm:^16.0.1":
+  version: 16.0.1
+  resolution: "@stellar/stellar-sdk@npm:16.0.1"
+  dependencies:
+    "@noble/ed25519": "npm:^3.1.0"
+    "@noble/hashes": "npm:^2.2.0"
+    "@stellar/js-xdr": "npm:4.0.0"
+    axios: "npm:1.16.1"
+    base32.js: "npm:^0.1.0"
+    bignumber.js: "npm:^11.1.1"
+    buffer: "npm:^6.0.3"
+    commander: "npm:^14.0.3"
+    eventsource: "npm:^4.1.0"
+    feaxios: "npm:^0.0.23"
+    smol-toml: "npm:^1.6.1"
+    uint8array-extras: "npm:^1.5.0"
+  bin:
+    stellar-js: bin/stellar-js
+  checksum: 10c0/a576111e5508d1dd3d70b855de4ed10f6ac257772f771ece7fc42123ef7fefc43d78c20f2dcb501b58983c89800e65c09a406775c263f89bf5692b4bc7c223de
   languageName: node
   linkType: hard
 
@@ -5585,6 +5621,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"axios@npm:1.16.1":
+  version: 1.16.1
+  resolution: "axios@npm:1.16.1"
+  dependencies:
+    follow-redirects: "npm:^1.16.0"
+    form-data: "npm:^4.0.5"
+    https-proxy-agent: "npm:^5.0.1"
+    proxy-from-env: "npm:^2.1.0"
+  checksum: 10c0/2f77e37e6552bbff8a772d058fb09500198e9188c6b20dc799d82dbe12a8cb506f6eed4e4e62a9ba612a35cbab496faa26d68f9bff14a53af6d15c3e136391a7
+  languageName: node
+  linkType: hard
+
 "axios@npm:^1.8.4":
   version: 1.18.1
   resolution: "axios@npm:1.18.1"
@@ -5825,6 +5873,13 @@ __metadata:
   version: 10.0.2
   resolution: "bignumber.js@npm:10.0.2"
   checksum: 10c0/471a17d851d275e458156d090c028b8851c84389dc41db79b08dd584b4df1e4d24f70b1684705a5974aec6c59dc8511337007e01bd78d8ed8d93e1a541356a7f
+  languageName: node
+  linkType: hard
+
+"bignumber.js@npm:^11.1.1":
+  version: 11.1.4
+  resolution: "bignumber.js@npm:11.1.4"
+  checksum: 10c0/18a0830b51816f4225cf4a5d2df355bfdec79427dfa5d7b6fac0853d8c846bd020678aa4ee11460fff030132e6b4b0b05c40f2f5b9d52bca0361b2612d4c6960
   languageName: node
   linkType: hard
 
@@ -6499,7 +6554,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"commander@npm:^14.0.0":
+"commander@npm:^14.0.0, commander@npm:^14.0.3":
   version: 14.0.3
   resolution: "commander@npm:14.0.3"
   checksum: 10c0/755652564bbf56ff2ff083313912b326450d3f8d8c85f4b71416539c9a05c3c67dbd206821ca72635bf6b160e2afdefcb458e86b317827d5cb333b69ce7f1a24
@@ -7672,10 +7727,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"eventsource-parser@npm:^3.0.1":
+  version: 3.1.0
+  resolution: "eventsource-parser@npm:3.1.0"
+  checksum: 10c0/5ab4c6c9a2a042be0b387b6d03810eb580bac4ce90e299ede56458125a97ffe3af8145b2740089fc898a96cfa5aae792ee79f2a06257fba2776b0e7bce037071
+  languageName: node
+  linkType: hard
+
 "eventsource@npm:^2.0.2":
   version: 2.0.2
   resolution: "eventsource@npm:2.0.2"
   checksum: 10c0/0b8c70b35e45dd20f22ff64b001be9d530e33b92ca8bdbac9e004d0be00d957ab02ef33c917315f59bf2f20b178c56af85c52029bc8e6cc2d61c31d87d943573
+  languageName: node
+  linkType: hard
+
+"eventsource@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "eventsource@npm:4.1.0"
+  dependencies:
+    eventsource-parser: "npm:^3.0.1"
+  checksum: 10c0/5d8f0f60fdafc5a3b4ce5d53f6a6c75cf07fbec250cfb870c44ea38d9689b9996e4a6f3779e520a6e7d32fbf398f42ea011a2c10772a9bc932fb419accede73e
   languageName: node
   linkType: hard
 
@@ -12184,6 +12255,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"smol-toml@npm:^1.6.1":
+  version: 1.7.0
+  resolution: "smol-toml@npm:1.7.0"
+  checksum: 10c0/8eef246b9b96f278a181f6dd2a90c754304cb4cf92ccdfe1d2f714fb980fb3f539ba00283609e8fd2fbcf7c0d48a4ae76b36bc0de556ed286b2c865827a778e8
+  languageName: node
+  linkType: hard
+
 "snarkjs@npm:^0.7.0, snarkjs@npm:^0.7.5":
   version: 0.7.6
   resolution: "snarkjs@npm:0.7.6"
@@ -13002,6 +13080,13 @@ __metadata:
   version: 1.6.4
   resolution: "ufo@npm:1.6.4"
   checksum: 10c0/3a2b29e7e3d772fbf6893d7d23bf442981457adb2fe122828abdbda89bedcb81aafd0dcc080e41b45f9a877db00cb42cbfee9639753a19d9b9bd39b5627039cf
+  languageName: node
+  linkType: hard
+
+"uint8array-extras@npm:^1.5.0":
+  version: 1.5.0
+  resolution: "uint8array-extras@npm:1.5.0"
+  checksum: 10c0/0e74641ac7dadb02eadefc1ccdadba6010e007757bda824960de3c72bbe2b04e6d3af75648441f412148c4103261d54fcb60be45a2863beb76643a55fddba3bd
   languageName: node
   linkType: hard
 

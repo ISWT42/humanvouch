@@ -14,6 +14,12 @@ export default defineNuxtConfig({
       rpcUrl: "https://soroban-testnet.stellar.org",
       networkPassphrase: "Test SDF Network ; September 2015",
       readSourcePublicKey: "GDTLFJ4P2YYJRVO4ED4YQSC5MXKVXYNZPVZXIF3IB5WRMWRFKCJW7BPE",
+      // DEMO ONLY — a throwaway, friendbot-funded testnet keypair so the demo can
+      // show a visible wallet login + a real signed attest tx without a browser
+      // extension. In production this is the user's own wallet (Stellar Wallets Kit);
+      // the secret never lives in the client.
+      demoSignerPublicKey: "GCXWEO2BGB5YIK2UHWPHSABY2DBCHVFO7N7Q2CPAE7N2LUNAOKXVL53A",
+      demoSignerSecret: "SA6YOULJEP3F65AB7CD6OEDWDXGQL7KE45JDALHO4DOPSAP7RZ4PMZN5",
     },
   },
   app: {

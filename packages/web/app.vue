@@ -4,9 +4,10 @@ const cfg = useRuntimeConfig().public;
 const registry = ref<any>(null);
 const wallet = ref<string>("");
 const walletErr = ref<string>("");
+const walletBusy = ref(false);
 
 // vouch flow
-const memberId = ref(0);
+const memberId = ref(3);
 const content = ref(
   "Investigation: the budget figures the ministry released do not add up. — by a real human.",
 );
@@ -62,11 +63,14 @@ function short(a: string) {
 
 async function connect() {
   walletErr.value = "";
+  walletBusy.value = true;
   try {
     const { connectWallet } = await import("~/lib/stellar.js");
-    wallet.value = await connectWallet();
+    wallet.value = await connectWallet(cfg);
   } catch (e: any) {
     walletErr.value = e.message || "connection failed";
+  } finally {
+    walletBusy.value = false;
   }
 }
 
@@ -131,10 +135,12 @@ async function doVerify() {
       <header class="flex items-center justify-between border-b border-ink-600 px-6 py-4 sm:px-10">
         <span class="font-display text-xl font-semibold tracking-tight text-paper">HumanVouch</span>
         <button
-          class="rounded-sm border border-ink-600 px-3 py-1.5 font-mono text-xs text-paper-dim transition hover:border-brass hover:text-brass-light"
+          class="flex items-center gap-2 rounded-sm border px-3 py-1.5 font-mono text-xs transition"
+          :class="wallet ? 'border-brass/50 text-brass-light' : 'border-ink-600 text-paper-dim hover:border-brass hover:text-brass-light'"
           @click="connect"
         >
-          {{ wallet ? short(wallet) : "Connect wallet" }}
+          <span v-if="wallet" class="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          {{ walletBusy ? "Connecting…" : wallet ? short(wallet) + " · testnet" : "Connect wallet" }}
         </button>
       </header>
 
