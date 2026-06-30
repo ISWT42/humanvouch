@@ -1,15 +1,20 @@
-// HumanVouch web — frontend shell (branding canvas).
-// Dev server runs on a deliberately uncommon port to avoid the many
-// services already bound on this machine.
+// HumanVouch web — SPA (ssr off) so browser proving (snarkjs) + wallet run client-side.
+// Deploys as a static bundle (nuxt generate) to Vercel/Cloudflare; talks directly to
+// Stellar testnet RPC — no backend needed.
 export default defineNuxtConfig({
   compatibilityDate: "2026-06-28",
+  // Heavy client-only libs (snarkjs / stellar-sdk / wallet kit) are dynamically
+  // imported in onMounted + click handlers, so SSR renders only the static shell.
   modules: ["@nuxtjs/tailwindcss"],
-  tailwindcss: {
-    cssPath: "~/assets/css/main.css",
-  },
-  devServer: {
-    port: 58273,
-    host: "127.0.0.1",
+  tailwindcss: { cssPath: "~/assets/css/main.css" },
+  devServer: { port: 58273, host: "127.0.0.1" },
+  runtimeConfig: {
+    public: {
+      attestContractId: "CDPDQJB7HX5XVOUHEDQKV6T7KJXNGVTVH3VDCXMFEE7GPIIINOVO5YZT",
+      rpcUrl: "https://soroban-testnet.stellar.org",
+      networkPassphrase: "Test SDF Network ; September 2015",
+      readSourcePublicKey: "GDTLFJ4P2YYJRVO4ED4YQSC5MXKVXYNZPVZXIF3IB5WRMWRFKCJW7BPE",
+    },
   },
   app: {
     head: {

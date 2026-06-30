@@ -5,11 +5,15 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
+    "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "nuxt": "^3.16.0"
+    "@creit.tech/stellar-wallets-kit": "^1.7.3",
+    "@stellar/stellar-sdk": "^13.1.0",
+    "nuxt": "^3.16.0",
+    "snarkjs": "^0.7.5"
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.13.0"

@@ -1,28 +1,100 @@
 <script setup lang="ts">
-// HumanVouch landing — a "certificate of authenticity" for digital content.
-// The guilloché seal carries the brand; everything around it stays quiet.
-const steps = [
-  {
-    n: "I",
-    title: "Enroll once",
-    body: "A verified, unique person joins the personhood registry a single time. That's the only moment identity is involved.",
-  },
-  {
-    n: "II",
-    title: "Vouch",
-    body: "They privately sign a piece of content. A zero-knowledge proof is minted to Stellar — their identity never leaves their device.",
-  },
-  {
-    n: "III",
-    title: "Verify",
-    body: "Anyone checks the seal: a real, unique human stands behind this content, and can't have done so twice. Nobody learns who.",
-  },
-];
+const cfg = useRuntimeConfig().public;
+
+const registry = ref<any>(null);
+const wallet = ref<string>("");
+const walletErr = ref<string>("");
+
+// vouch flow
+const memberId = ref(0);
+const content = ref(
+  "Investigation: the budget figures the ministry released do not add up. — by a real human.",
+);
+const vStatus = ref("");
+const vBusy = ref(false);
+const vResult = ref<{ count: number; hash: string } | null>(null);
+const vErr = ref("");
+
+// verify flow
+const vcontent = ref("");
+const verBusy = ref(false);
+const verCount = ref<number | null>(null);
+const verErr = ref("");
+
+onMounted(async () => {
+  try {
+    const { loadRegistry } = await import("~/lib/zk.js");
+    registry.value = await loadRegistry();
+  } catch (e: any) {
+    vErr.value = "registry load failed: " + e.message;
+  }
+});
+
+function short(a: string) {
+  return a ? a.slice(0, 5) + "…" + a.slice(-4) : "";
+}
+
+async function connect() {
+  walletErr.value = "";
+  try {
+    const { connectWallet } = await import("~/lib/stellar.js");
+    wallet.value = await connectWallet();
+  } catch (e: any) {
+    walletErr.value = e.message || "connection failed";
+  }
+}
+
+async function doVouch() {
+  vErr.value = "";
+  vResult.value = null;
+  if (!wallet.value) {
+    await connect();
+    if (!wallet.value) return;
+  }
+  vBusy.value = true;
+  try {
+    const zk = await import("~/lib/zk.js");
+    const st = await import("~/lib/stellar.js");
+    const member = registry.value.members[memberId.value];
+
+    vStatus.value = "Hashing content…";
+    const ch = await zk.contentHashField(content.value);
+
+    vStatus.value = "Generating zero-knowledge proof in your browser…";
+    const { proofHex, publicHex } = await zk.generateVouchProof(member, ch);
+
+    vStatus.value = "Sign the transaction in your wallet…";
+    const res = await st.submitAttest(cfg, wallet.value, proofHex, publicHex);
+
+    vStatus.value = "";
+    vResult.value = res;
+  } catch (e: any) {
+    vErr.value = e.message || String(e);
+  } finally {
+    vBusy.value = false;
+  }
+}
+
+async function doVerify() {
+  verErr.value = "";
+  verCount.value = null;
+  verBusy.value = true;
+  try {
+    const zk = await import("~/lib/zk.js");
+    const st = await import("~/lib/stellar.js");
+    const ch = await zk.contentHashField(vcontent.value || content.value);
+    const bytes32 = zk.toBytes32BE(ch);
+    verCount.value = await st.getVouches(cfg, wallet.value || null, bytes32);
+  } catch (e: any) {
+    verErr.value = e.message || String(e);
+  } finally {
+    verBusy.value = false;
+  }
+}
 </script>
 
 <template>
   <div class="min-h-screen px-4 py-4 sm:px-6 sm:py-6">
-    <!-- security-document frame -->
     <div class="relative mx-auto max-w-doc border border-ink-600">
       <span class="pointer-events-none absolute left-2 top-2 h-2 w-2 border-l border-t border-brass/60" />
       <span class="pointer-events-none absolute right-2 top-2 h-2 w-2 border-r border-t border-brass/60" />
@@ -31,83 +103,112 @@ const steps = [
 
       <!-- masthead -->
       <header class="flex items-center justify-between border-b border-ink-600 px-6 py-4 sm:px-10">
-        <div class="flex items-baseline gap-2.5">
-          <span class="font-display text-xl font-semibold tracking-tight text-paper">HumanVouch</span>
-        </div>
-        <p class="eyebrow hidden sm:block">Issued on Stellar · Verified on-chain</p>
+        <span class="font-display text-xl font-semibold tracking-tight text-paper">HumanVouch</span>
+        <button
+          class="rounded-sm border border-ink-600 px-3 py-1.5 font-mono text-xs text-paper-dim transition hover:border-brass hover:text-brass-light"
+          @click="connect"
+        >
+          {{ wallet ? short(wallet) : "Connect wallet" }}
+        </button>
       </header>
 
       <!-- hero -->
-      <section class="grid items-center gap-10 px-6 py-14 sm:px-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16 lg:py-20">
+      <section class="grid items-center gap-10 px-6 py-12 sm:px-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16 lg:py-16">
         <div class="order-2 lg:order-1">
-          <p class="eyebrow">Real-World ZK · Stellar</p>
-          <h1 class="mt-5 font-display text-[2.6rem] font-normal leading-[1.04] tracking-[-0.01em] text-paper sm:text-6xl">
-            Proof that a real,<br />
-            <span class="text-brass-light">unique human</span><br />
-            stands behind this.
+          <p class="eyebrow">Real-World ZK · Stellar testnet · live</p>
+          <h1 class="mt-5 font-display text-[2.4rem] font-normal leading-[1.05] tracking-[-0.01em] text-paper sm:text-5xl">
+            Proof that a real,<br /><span class="text-brass-light">unique human</span> stands behind this.
           </h1>
-          <p class="mt-7 max-w-xl text-[1.05rem] leading-relaxed text-paper-dim">
-            Not AI detection — that is impossible. HumanVouch lets a verified, unique person
-            privately vouch for a piece of content: anonymous, sybil-resistant, and provable
-            on Stellar with zero-knowledge. A certificate of authenticity for the human era.
+          <p class="mt-6 max-w-xl text-[1.02rem] leading-relaxed text-paper-dim">
+            Not AI detection — that is impossible. A verified, unique person privately vouches for a
+            piece of content: anonymous, sybil-resistant, and proven on Stellar with a real
+            zero-knowledge proof generated in your browser.
           </p>
-
-          <div class="mt-9 flex flex-wrap gap-3">
-            <button
-              class="rounded-sm border border-brass bg-brass/10 px-5 py-3 text-sm font-medium tracking-wide text-brass-light transition hover:bg-brass/20"
-            >
-              Vouch for content
-            </button>
-            <button
-              class="rounded-sm border border-ink-600 px-5 py-3 text-sm font-medium tracking-wide text-paper-dim transition hover:border-paper-dim hover:text-paper"
-            >
-              Verify a post
-            </button>
-          </div>
         </div>
-
-        <div class="order-1 flex justify-center lg:order-2">
-          <VouchSeal :size="380" hash="0x9F4C·A1B2" label="Attestation" />
+        <div class="order-1 flex h-[320px] w-[320px] items-center justify-center lg:order-2">
+          <ClientOnly>
+            <VouchSeal :size="320" :hash="vResult ? '0x' + (vResult.hash.slice(0,8)) : '0x9F4C·A1B2'"
+                       :label="vResult ? 'Vouched' : 'Attestation'" />
+          </ClientOnly>
         </div>
       </section>
 
-      <!-- the ledger: what it proves / what it does not claim -->
+      <!-- interactive: vouch + verify -->
+      <section class="grid border-t border-ink-600 lg:grid-cols-2">
+        <!-- VOUCH -->
+        <div class="border-b border-ink-600 px-6 py-8 sm:px-10 lg:border-b-0 lg:border-r">
+          <p class="eyebrow text-brass">Vouch for content</p>
+          <p class="mt-3 text-sm text-paper-dim">A verified human stakes a private, anonymous vouch on this content.</p>
+
+          <label class="mt-5 block font-mono text-xs text-paper-faint">YOUR VERIFIED IDENTITY (demo registry)</label>
+          <select v-model="memberId" class="mt-1.5 w-full rounded-sm border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-paper">
+            <option v-for="m in registry?.members || []" :key="m.id" :value="m.id">{{ m.label }}</option>
+          </select>
+
+          <label class="mt-4 block font-mono text-xs text-paper-faint">CONTENT</label>
+          <textarea v-model="content" rows="3"
+            class="mt-1.5 w-full resize-none rounded-sm border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-paper" />
+
+          <button :disabled="vBusy"
+            class="mt-4 w-full rounded-sm border border-brass bg-brass/10 px-5 py-3 text-sm font-medium tracking-wide text-brass-light transition hover:bg-brass/20 disabled:opacity-50"
+            @click="doVouch">
+            {{ vBusy ? "Working…" : "Generate proof & vouch on Stellar" }}
+          </button>
+
+          <p v-if="vStatus" class="mt-3 font-mono text-xs text-prussian-light">{{ vStatus }}</p>
+          <p v-if="vErr" class="mt-3 font-mono text-xs text-oxblood">⚠ {{ vErr }}</p>
+          <div v-if="vResult" class="mt-4 rounded-sm border border-brass/30 bg-brass/5 p-4 text-sm">
+            <p class="text-brass-light">✅ Vouched on-chain · <span class="text-paper">{{ vResult.count }}</span> unique human(s) for this content</p>
+            <a :href="`https://stellar.expert/explorer/testnet/tx/${vResult.hash}`" target="_blank"
+               class="mt-1 block break-all font-mono text-xs text-prussian-light underline">view the real transaction ↗</a>
+          </div>
+        </div>
+
+        <!-- VERIFY -->
+        <div class="px-6 py-8 sm:px-10">
+          <p class="eyebrow text-paper-dim">Verify a post</p>
+          <p class="mt-3 text-sm text-paper-dim">Anyone can check how many unique verified humans stand behind a piece of content.</p>
+
+          <label class="mt-5 block font-mono text-xs text-paper-faint">PASTE CONTENT (blank = use the one on the left)</label>
+          <textarea v-model="vcontent" rows="3" placeholder="Paste the article / post text…"
+            class="mt-1.5 w-full resize-none rounded-sm border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-paper placeholder:text-paper-faint" />
+
+          <button :disabled="verBusy"
+            class="mt-4 w-full rounded-sm border border-ink-600 px-5 py-3 text-sm font-medium tracking-wide text-paper-dim transition hover:border-paper-dim hover:text-paper disabled:opacity-50"
+            @click="doVerify">
+            {{ verBusy ? "Checking…" : "Check vouches on Stellar" }}
+          </button>
+
+          <p v-if="verErr" class="mt-3 font-mono text-xs text-oxblood">⚠ {{ verErr }}</p>
+          <div v-if="verCount !== null" class="mt-4 rounded-sm border border-ink-600 p-4">
+            <p class="font-display text-3xl text-paper">{{ verCount }}</p>
+            <p class="mt-1 text-sm text-paper-dim">unique verified human(s) vouch for this exact content · anonymous · on Stellar</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- honest framing -->
       <section class="grid border-t border-ink-600 sm:grid-cols-2">
-        <div class="border-b border-ink-600 px-6 py-8 sm:border-b-0 sm:border-r sm:px-10">
-          <p class="eyebrow text-brass">What the seal proves</p>
-          <ul class="mt-5 space-y-3 text-sm leading-relaxed text-paper">
-            <li class="flex gap-3"><span class="text-brass">—</span> A unique verified human vouches for the content</li>
-            <li class="flex gap-3"><span class="text-brass">—</span> Anonymous: nobody learns who, not even us</li>
+        <div class="border-b border-ink-600 px-6 py-6 sm:border-b-0 sm:border-r sm:px-10">
+          <p class="eyebrow text-brass">What it proves</p>
+          <ul class="mt-4 space-y-2 text-sm text-paper">
+            <li class="flex gap-3"><span class="text-brass">—</span> A unique verified human vouches, anonymously</li>
             <li class="flex gap-3"><span class="text-brass">—</span> Sybil-resistant: one human, one vouch per content</li>
-            <li class="flex gap-3"><span class="text-brass">—</span> Verified on-chain on Stellar / Soroban</li>
+            <li class="flex gap-3"><span class="text-brass">—</span> Real Groth16 proof, verified on Stellar</li>
           </ul>
         </div>
-        <div class="px-6 py-8 sm:px-10">
+        <div class="px-6 py-6 sm:px-10">
           <p class="eyebrow text-paper-faint">What it does not claim</p>
-          <ul class="mt-5 space-y-3 text-sm leading-relaxed text-paper-dim">
-            <li class="flex gap-3"><span class="text-paper-faint">—</span> That a human <em>wrote</em> the bytes — it is attribution, not authorship</li>
-            <li class="flex gap-3"><span class="text-paper-faint">—</span> AI detection — statistically unreliable and evadable</li>
+          <ul class="mt-4 space-y-2 text-sm text-paper-dim">
+            <li class="flex gap-3"><span class="text-paper-faint">—</span> That a human <em>wrote</em> the bytes (attribution, not authorship)</li>
+            <li class="flex gap-3"><span class="text-paper-faint">—</span> AI detection — unreliable and evadable</li>
             <li class="flex gap-3"><span class="text-paper-faint">—</span> Anything stronger than the personhood registry behind it</li>
           </ul>
         </div>
       </section>
 
-      <!-- how a vouch is issued — a real, ordered sequence, so it earns its numerals -->
-      <section class="border-t border-ink-600 px-6 py-12 sm:px-10">
-        <p class="eyebrow">How a vouch is issued</p>
-        <ol class="mt-8 grid gap-8 sm:grid-cols-3 sm:gap-6">
-          <li v-for="s in steps" :key="s.n" class="border-t border-ink-700 pt-5">
-            <span class="font-mono text-sm text-brass">{{ s.n }}</span>
-            <h3 class="mt-2 font-display text-xl text-paper">{{ s.title }}</h3>
-            <p class="mt-2 text-sm leading-relaxed text-paper-dim">{{ s.body }}</p>
-          </li>
-        </ol>
-      </section>
-
-      <!-- colophon -->
-      <footer class="flex flex-col gap-2 border-t border-ink-600 px-6 py-5 text-xs text-paper-faint sm:flex-row sm:items-center sm:justify-between sm:px-10">
-        <span class="font-mono">127.0.0.1:58273 · local specimen</span>
-        <span class="font-mono">Demo trusted-setup is non-production · branding in progress</span>
+      <footer class="border-t border-ink-600 px-6 py-5 font-mono text-xs text-paper-faint sm:px-10">
+        Live on Stellar testnet · AttestContract {{ cfg.attestContractId.slice(0, 6) }}… · demo personhood registry (real crypto, operated by us) · non-production trusted setup
       </footer>
     </div>
   </div>
