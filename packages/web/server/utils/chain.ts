@@ -1,0 +1,46 @@
+// Server-side chain helpers for the x402 agent endpoint.
+import * as StellarSdk from "@stellar/stellar-sdk";
+import { createHash } from "node:crypto";
+
+const FR = 52435875175126190479447740508185965837690552500527637822603658699938581184513n;
+
+export function contentToField(text: string): bigint {
+  const hex = createHash("sha256").update(text, "utf8").digest("hex");
+  return BigInt("0x" + hex) % FR;
+}
+
+export function fieldToBytes32(value: bigint): Buffer {
+  const hex = value.toString(16).padStart(64, "0");
+  return Buffer.from(hex, "hex");
+}
+
+export interface ChainCfg {
+  attestContractId: string;
+  rpcUrl: string;
+  networkPassphrase: string;
+  readSourcePublicKey: string;
+}
+
+// Read-only on-chain query: how many unique humans vouch for this content field element.
+export async function getVouchesOnChain(cfg: ChainCfg, contentField: bigint): Promise<number> {
+  const ns: any = (StellarSdk as any).SorobanRpc || (StellarSdk as any).rpc;
+  const server = new ns.Server(cfg.rpcUrl, { allowHttp: cfg.rpcUrl.startsWith("http://") });
+  const account = await server.getAccount(cfg.readSourcePublicKey);
+  const contract = new StellarSdk.Contract(cfg.attestContractId);
+  const op = contract.call(
+    "get_vouches",
+    StellarSdk.xdr.ScVal.scvBytes(fieldToBytes32(contentField)),
+  );
+  const tx = new StellarSdk.TransactionBuilder(account, {
+    fee: "100",
+    networkPassphrase: cfg.networkPassphrase,
+  })
+    .addOperation(op)
+    .setTimeout(30)
+    .build();
+  const sim = await server.simulateTransaction(tx);
+  if (ns.Api?.isSimulationError?.(sim) || sim.error) {
+    throw new Error(typeof sim.error === "string" ? sim.error : "simulation error");
+  }
+  return Number(StellarSdk.scValToNative(sim.result.retval));
+}
