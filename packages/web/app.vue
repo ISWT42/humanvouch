@@ -8,9 +8,47 @@ const walletErr = ref<string>("");
 const walletBusy = ref(false);
 const walletStatus = ref("");
 
-// proof-of-personhood (anti-bot) gate
+// proof-of-personhood (anti-bot) gate — real Cloudflare Turnstile widget
+const TURNSTILE_SITEKEY = "1x00000000000000000000AA"; // public TEST key (always passes)
 const humanVerified = ref(false);
 const verifyingHuman = ref(false);
+const humanErr = ref("");
+const turnstileEl = ref<HTMLElement | null>(null);
+let turnstileRendered = false;
+useHead({
+  script: [
+    { src: "https://challenges.cloudflare.com/turnstile/v0/api.js", async: true, defer: true },
+  ],
+});
+
+async function onHumanToken(token: string) {
+  verifyingHuman.value = true;
+  humanErr.value = "";
+  try {
+    const r: any = await $fetch("/api/verify-human", { method: "POST", body: { token } });
+    humanVerified.value = !!r.success;
+    if (!r.success) humanErr.value = "human check failed — try again";
+  } catch (e: any) {
+    humanErr.value = e.message || "verification error";
+  } finally {
+    verifyingHuman.value = false;
+  }
+}
+
+function renderTurnstile() {
+  const w = window as any;
+  if (humanVerified.value || turnstileRendered) return;
+  if (!w.turnstile || !turnstileEl.value) {
+    setTimeout(renderTurnstile, 300);
+    return;
+  }
+  turnstileRendered = true;
+  w.turnstile.render(turnstileEl.value, {
+    sitekey: TURNSTILE_SITEKEY,
+    theme: "dark",
+    callback: onHumanToken,
+  });
+}
 
 // vouch flow
 const memberId = ref(1);
@@ -39,6 +77,7 @@ const agent200 = ref<any>(null);
 const agentErr = ref("");
 
 onMounted(async () => {
+  renderTurnstile();
   try {
     const { loadRegistry } = await import("~/lib/zk.js");
     registry.value = await loadRegistry();
@@ -62,15 +101,6 @@ async function openSharedVerification(hashField: string) {
   } catch (e: any) {
     shareView.value = { loading: false, hashField, error: e.message };
   }
-}
-
-async function verifyHuman() {
-  verifyingHuman.value = true;
-  // Demo proof-of-personhood. Production: World ID / passport NFC / liveness — a real
-  // anti-bot check so only unique humans ever get an identity in the registry.
-  await new Promise((r) => setTimeout(r, 1600));
-  humanVerified.value = true;
-  verifyingHuman.value = false;
 }
 
 function short(a: string) {
@@ -246,18 +276,16 @@ async function runAgentQuery() {
           <p class="eyebrow text-brass">Vouch for content</p>
           <p class="mt-3 text-sm text-paper-dim">A verified human stakes a private, anonymous vouch on this content.</p>
 
-          <!-- proof-of-personhood gate (the honest "human filter": verify the PERSON, not the bytes) -->
+          <!-- proof-of-personhood gate: a real Cloudflare Turnstile human check -->
           <div class="mt-5 rounded-sm border border-ink-600 bg-ink-800 p-3">
-            <p class="font-mono text-xs text-paper-faint">PROOF OF PERSONHOOD</p>
-            <div v-if="!humanVerified" class="mt-2 flex items-center justify-between gap-3">
-              <span class="text-xs text-paper-dim">Pass a human check before you get an identity.</span>
-              <button :disabled="verifyingHuman"
-                class="shrink-0 rounded-sm border border-prussian-light/50 px-3 py-1.5 text-xs font-medium text-prussian-light transition hover:bg-prussian/20 disabled:opacity-50"
-                @click="verifyHuman">
-                {{ verifyingHuman ? "Verifying you're human…" : "Verify you're human" }}
-              </button>
+            <p class="font-mono text-xs text-paper-faint">PROOF OF PERSONHOOD · CLOUDFLARE TURNSTILE</p>
+            <div v-if="!humanVerified" class="mt-2">
+              <p class="text-xs text-paper-dim">Pass a real human check before you get an identity.</p>
+              <div ref="turnstileEl" class="mt-2 min-h-[66px]" />
+              <p v-if="verifyingHuman" class="mt-2 font-mono text-xs text-prussian-light">Verifying with Cloudflare…</p>
+              <p v-if="humanErr" class="mt-2 font-mono text-xs text-oxblood">⚠ {{ humanErr }}</p>
             </div>
-            <p v-else class="mt-2 text-xs text-brass-light">✓ Human verified · identity issued <span class="text-paper-faint">(demo — production: World ID / passport)</span></p>
+            <p v-else class="mt-2 text-xs text-brass-light">✓ Human verified · identity issued <span class="text-paper-faint">(real anti-bot via Turnstile; World ID adds uniqueness)</span></p>
           </div>
 
           <label class="mt-4 block font-mono text-xs text-paper-faint">YOUR VERIFIED IDENTITY (demo registry)</label>
