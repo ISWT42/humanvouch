@@ -88,19 +88,19 @@ onMounted(async () => {
   if (route.query.v) await openSharedVerification(String(route.query.v));
 });
 
+import { resolveShareView } from "~/lib/shareView.js";
+
 // A shareable link /?v=<contentHashField> resolves the attestation for anyone.
 async function openSharedVerification(hashField: string) {
-  shareView.value = { loading: true, hashField };
-  try {
-    const zk = await import("~/lib/zk.js");
-    const st = await import("~/lib/stellar.js");
-    const count = await st.getVouches(cfg, null, zk.toBytes32BE(BigInt(hashField)));
-    const stored =
-      typeof localStorage !== "undefined" ? localStorage.getItem("hv_content_" + hashField) : null;
-    shareView.value = { loading: false, hashField, count, content: stored };
-  } catch (e: any) {
-    shareView.value = { loading: false, hashField, error: e.message };
-  }
+  shareView.value = { loading: true, hashField, failed: false, error: null };
+  const zk = await import("~/lib/zk.js");
+  const st = await import("~/lib/stellar.js");
+  shareView.value = await resolveShareView(
+    hashField,
+    (hf: string) => st.getVouches(cfg, null, zk.toBytes32BE(BigInt(hf))),
+    (hf: string) =>
+      typeof localStorage !== "undefined" ? localStorage.getItem("hv_content_" + hf) : null
+  );
 }
 
 function short(a: string) {
@@ -233,6 +233,11 @@ async function runAgentQuery() {
       <section v-if="shareView" class="border-b border-ink-600 bg-brass/5 px-6 py-7 sm:px-10">
         <p class="eyebrow text-brass">Content credential · resolved on Stellar</p>
         <p v-if="shareView.loading" class="mt-3 font-mono text-sm text-prussian-light">Resolving on-chain…</p>
+        <div v-else-if="shareView.failed || shareView.error" class="mt-3 rounded-sm border border-oxblood/40 bg-ink-800 p-3 text-sm">
+          <p class="font-medium text-oxblood">⚠ Resolution error on Stellar</p>
+          <p class="mt-1 font-mono text-xs text-paper-dim">{{ shareView.error || "On-chain attestation resolution failed." }}</p>
+          <p class="mt-2 font-mono text-[11px] text-paper-faint">contentHash {{ shareView.hashField?.slice(0, 18) }}… · AttestContract {{ cfg.attestContractId?.slice(0, 8) }}…</p>
+        </div>
         <template v-else>
           <p class="mt-3 text-lg text-paper">
             <span v-if="shareView.count > 0" class="text-brass-light">✅ Human-Vouched</span>
