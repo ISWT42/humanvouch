@@ -35,20 +35,33 @@ async function onHumanToken(token: string) {
   }
 }
 
+import { TurnstilePoller } from "~/lib/turnstilePoller.js";
+
+const turnstilePoller = new TurnstilePoller({
+  onError: (msg) => {
+    humanErr.value = msg;
+  },
+});
+
 function renderTurnstile() {
-  const w = window as any;
+  const w = typeof window !== "undefined" ? (window as any) : ({} as any);
   if (humanVerified.value || turnstileRendered) return;
-  if (!w.turnstile || !turnstileEl.value) {
-    setTimeout(renderTurnstile, 300);
-    return;
-  }
-  turnstileRendered = true;
-  w.turnstile.render(turnstileEl.value, {
-    sitekey: TURNSTILE_SITEKEY,
-    theme: "dark",
-    callback: onHumanToken,
-  });
+  turnstilePoller.poll(
+    () => !!(w.turnstile && turnstileEl.value),
+    () => {
+      turnstileRendered = true;
+      w.turnstile.render(turnstileEl.value, {
+        sitekey: TURNSTILE_SITEKEY,
+        theme: "dark",
+        callback: onHumanToken,
+      });
+    }
+  );
 }
+
+onUnmounted(() => {
+  turnstilePoller.stop();
+});
 
 // vouch flow
 const memberId = ref(1);
