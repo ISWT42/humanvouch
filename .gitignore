@@ -53,3 +53,6 @@ packages/contracts/**/target/
 packages/zk/circuits/build/
 attest_input.json
 expected_public.json
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
