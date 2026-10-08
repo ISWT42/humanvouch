@@ -64,7 +64,15 @@ export function publicSignalsToHex(publicSignals) {
 }
 
 export function cleanHex(value) {
-  return value.trim().toLowerCase().replace(/^0x/, "").replace(/\s+/g, "");
+  if (typeof value !== "string") {
+    throw new TypeError(`Expected hex string, received ${typeof value}`);
+  }
+  const clean = value.trim().toLowerCase().replace(/^0x/, "").replace(/\s+/g, "");
+  const invalidMatch = clean.match(/[^0-9a-f]/);
+  if (invalidMatch) {
+    throw new Error(`Invalid hex character: "${invalidMatch[0]}"`);
+  }
+  return clean;
 }
 
 export function hexToBytes(hex) {
