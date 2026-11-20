@@ -7,8 +7,8 @@
   ],
   "packageManager": "yarn@4.14.1",
   "scripts": {
-    "dev": "node api.js && turbo dev",
-    "build": "node api.js && turbo build",
+    "dev": "turbo dev",
+    "build": "turbo build",
     "test": "turbo test"
   },
   "devDependencies": {
